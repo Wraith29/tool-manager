@@ -7,6 +7,7 @@ const Executable = @import("cmd/Executable.zig");
 const Init = @import("cmd/Init.zig");
 const Install = @import("cmd/Install.zig");
 const Export = @import("cmd/Export.zig");
+const List = @import("cmd/List.zig");
 
 const Cli = @This();
 
@@ -14,6 +15,7 @@ const commands = [_]Command{
     Init.command(),
     Install.command(),
     Export.command(),
+    List.command(),
 };
 
 allocator: Allocator,
