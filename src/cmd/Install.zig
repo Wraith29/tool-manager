@@ -7,6 +7,8 @@ const files = @import("../files.zig");
 const Command = @import("Command.zig");
 const Executable = @import("Executable.zig");
 const Tool = @import("../Tool.zig");
+const string = @import("../string.zig");
+const readUntilNewLineAlloc = @import("../reader_ext.zig").readUntilNewLineAlloc;
 
 const log = std.log.scoped(.install_cmd);
 const Install = @This();
@@ -68,10 +70,10 @@ pub fn execute(ptr: *anyopaque, allocator: Allocator) !void {
     defer cfg.destroy(allocator);
 
     var writer = std.io.getStdOut().writer();
-    var reader = std.io.getStdIn().reader();
+    const reader = std.io.getStdIn().reader();
 
     try writer.writeAll("Git Repository: ");
-    const repo_link = try reader.readUntilDelimiterAlloc(allocator, '\n', 1 << 12);
+    const repo_link = try readUntilNewLineAlloc(allocator, reader, 1 << 12);
     defer allocator.free(repo_link);
 
     // Ensure we have been given a valid repo link
@@ -97,15 +99,15 @@ pub fn execute(ptr: *anyopaque, allocator: Allocator) !void {
 
     while (true) {
         try writer.writeAll("Step Name: ");
-        const step_name = try reader.readUntilDelimiterAlloc(allocator, '\n', 16);
+        const step_name = try readUntilNewLineAlloc(allocator, reader, 16);
 
-        if (step_name.len == 0) {
+        if (string.isAllWhitespace(step_name)) {
             allocator.free(step_name);
             break;
         }
 
         try writer.writeAll("Step Command: ");
-        const step_arguments = try reader.readUntilDelimiterAlloc(allocator, '\n', 256);
+        const step_arguments = try readUntilNewLineAlloc(allocator, reader, 256);
         defer allocator.free(step_arguments);
 
         var step_arg_iter = std.mem.splitSequence(u8, step_arguments, " ");
@@ -115,6 +117,7 @@ pub fn execute(ptr: *anyopaque, allocator: Allocator) !void {
             const arg_buf = try allocator.alloc(u8, arg.len);
             @memcpy(arg_buf, arg);
             try step_command.append(arg_buf);
+            log.debug("Cmd Arg: '{s}'", .{arg_buf});
         }
 
         var next_step = try allocator.create(Tool.Step);

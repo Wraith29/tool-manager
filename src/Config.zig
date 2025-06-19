@@ -10,7 +10,7 @@ max_threads: usize = 4,
 install_directory: []const u8,
 
 pub fn load(allocator: Allocator) !*Config {
-    const cfg_fp = try std.mem.concat(allocator, u8, &.{ files.app_data_dir, std.fs.path.sep_str, "config.json" });
+    const cfg_fp = try std.fs.path.join(allocator, &.{ files.app_data_dir, "config.json" });
     defer allocator.free(cfg_fp);
 
     log.info("Checking for Config @ {s}", .{cfg_fp});

@@ -19,7 +19,7 @@ repository: []const u8,
 install_steps: []*Step,
 
 fn getToolPath(self: *const Tool, allocator: Allocator, cfg: *const Config) ![]const u8 {
-    return try std.mem.concat(allocator, u8, &.{ cfg.install_directory, std.fs.path.sep_str, self.name });
+    return try std.fs.path.join(allocator, &.{ cfg.install_directory, self.name });
 }
 
 pub fn install(self: *const Tool, allocator: Allocator, cfg: *const Config) !void {
@@ -98,7 +98,12 @@ fn build(
     tool_path: []const u8,
 ) !void {
     for (self.install_steps) |step| {
-        log.info("{s}: Running {s}", .{ self.name, step.name });
+        const tmp = try std.mem.join(allocator, " ", step.args);
+        defer allocator.free(tmp);
+
+        std.debug.print("\n\nExecuting Command: '{s}'\n\n", .{tmp});
+
+        log.info("{s}: Running {s} -> {s}", .{ self.name, step.name, tmp });
 
         const cmd = try Child.run(.{
             .allocator = allocator,
@@ -120,7 +125,7 @@ fn build(
 }
 
 pub fn save(self: *const Tool, allocator: Allocator) !void {
-    const tool_fp = try std.mem.concat(allocator, u8, &.{ files.app_data_dir, std.fs.path.sep_str, "tools.json" });
+    const tool_fp = try std.fs.path.join(allocator, &.{ files.app_data_dir, "tools.json" });
     defer allocator.free(tool_fp);
 
     if (!files.pathExists(tool_fp)) {
@@ -150,7 +155,7 @@ pub fn save(self: *const Tool, allocator: Allocator) !void {
 }
 
 pub fn loadAll(allocator: Allocator) !std.json.Parsed([]*const Tool) {
-    const tool_fp = try std.mem.concat(allocator, u8, &.{ files.app_data_dir, std.fs.path.sep_str, "tools.json" });
+    const tool_fp = try std.fs.path.join(allocator, &.{ files.app_data_dir, "tools.json" });
     defer allocator.free(tool_fp);
 
     if (!files.pathExists(tool_fp)) {
