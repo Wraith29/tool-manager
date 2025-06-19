@@ -3,13 +3,12 @@ const log = std.log;
 const time = std.time;
 const Allocator = std.mem.Allocator;
 
+const Cli = @import("Cli.zig");
+const Command = @import("cmd/Command.zig");
+const Init = @import("cmd/Init.zig");
 const Config = @import("Config.zig");
 const files = @import("files.zig");
 const Tool = @import("Tool.zig");
-const Cli = @import("Cli.zig");
-
-const Command = @import("cmd/Command.zig");
-const Init = @import("cmd/Init.zig");
 
 pub const std_options = std.Options{
     .logFn = customLogFn,

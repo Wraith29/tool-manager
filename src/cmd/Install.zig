@@ -1,4 +1,5 @@
 const std = @import("std");
+const builtin = @import("builtin");
 const Allocator = std.mem.Allocator;
 const ArrayList = std.ArrayList;
 
@@ -97,6 +98,9 @@ pub fn execute(ptr: *anyopaque, allocator: Allocator) !void {
         install_steps.deinit();
     }
 
+    var env_map = try std.process.getEnvMap(allocator);
+    defer env_map.deinit();
+
     while (true) {
         try writer.writeAll("Step Name: ");
         const step_name = try readUntilNewLineAlloc(allocator, reader, 16);
@@ -114,10 +118,21 @@ pub fn execute(ptr: *anyopaque, allocator: Allocator) !void {
         var step_command = ArrayList([]const u8).init(allocator);
 
         while (step_arg_iter.next()) |arg| {
-            const arg_buf = try allocator.alloc(u8, arg.len);
-            @memcpy(arg_buf, arg);
-            try step_command.append(arg_buf);
-            log.debug("Cmd Arg: '{s}'", .{arg_buf});
+            if (std.mem.containsAtLeast(u8, arg, 1, "$")) {
+                const ev_data = try getEnvVarName(allocator, arg);
+                defer allocator.free(ev_data.name);
+                log.debug("Looking for {s}", .{ev_data.name});
+
+                const env_var = env_map.get(ev_data.name[1..]) orelse return error.EnvVarNotFound;
+                log.debug("Expanded to {s}", .{env_var});
+
+                const arg_expanded = try std.mem.replaceOwned(u8, allocator, arg, ev_data.name, env_var);
+                try step_command.append(arg_expanded);
+            } else {
+                const arg_buf = try allocator.alloc(u8, arg.len);
+                @memcpy(arg_buf, arg);
+                try step_command.append(arg_buf);
+            }
         }
 
         var next_step = try allocator.create(Tool.Step);
@@ -135,4 +150,32 @@ pub fn execute(ptr: *anyopaque, allocator: Allocator) !void {
 
     try tool.install(allocator, cfg);
     try tool.save(allocator);
+}
+
+fn getEnvVarName(allocator: Allocator, str: []const u8) !struct { name: []const u8, start: usize, end: usize } {
+    switch (builtin.target.os.tag) {
+        .windows => {
+            return error.NotImplemented;
+        },
+        else => {
+            const start_idx = std.mem.indexOf(u8, str, "$") orelse return error.InvalidEnvVar;
+
+            var idx: usize = start_idx;
+            var env_var_name = ArrayList(u8).init(allocator);
+
+            while (idx < str.len) : (idx += 1) {
+                const chr = str[idx];
+                if (!std.ascii.isAlphanumeric(chr) and chr != '$')
+                    break;
+
+                try env_var_name.append(chr);
+            }
+
+            return .{
+                .name = try env_var_name.toOwnedSlice(),
+                .start = start_idx,
+                .end = idx,
+            };
+        },
+    }
 }

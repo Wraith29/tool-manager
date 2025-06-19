@@ -17,6 +17,14 @@ pub fn build(b: *std.Build) void {
 
     b.installArtifact(exe);
 
+    const build_check = b.addExecutable(.{
+        .name = "tm",
+        .root_module = exe_mod,
+    });
+
+    const check = b.step("check", "Check if tool-manager compiles");
+    check.dependOn(&build_check.step);
+
     const run_cmd = b.addRunArtifact(exe);
     run_cmd.step.dependOn(b.getInstallStep());
 
