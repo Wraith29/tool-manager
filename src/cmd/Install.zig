@@ -24,6 +24,13 @@ pub fn command() Command {
 
 pub fn help() []const u8 {
     return 
+    \\install
+    \\-------
+    \\Install the given command
+    \\
+    \\Parameters:
+    \\  tm install <name>
+    \\
     \\
     ;
 }

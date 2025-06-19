@@ -49,6 +49,7 @@ fn downloadRepository(
         .allocator = allocator,
         .argv = &.{ "git", "clone", self.repository, tool_path, "--quiet" },
     });
+    defer freeChildResult(clone_result, allocator);
 
     if (clone_result.term.Exited != 0) {
         log.err("{s}: Failed to clone repository: {d}, {s}", .{ self.name, clone_result.term.Exited, clone_result.stderr });
@@ -66,6 +67,8 @@ fn updateRepository(
         .argv = &.{ "git", "fetch" },
         .cwd = tool_path,
     });
+    defer freeChildResult(fetch_result, allocator);
+
     if (fetch_result.term.Exited != 0) {
         log.err("{s}: Failed to fetch repository: {d}, {s}", .{ self.name, fetch_result.term.Exited, fetch_result.stderr });
         return error.FetchFailed;
@@ -81,6 +84,7 @@ fn updateRepository(
         .argv = &.{ "git", "pull" },
         .cwd = tool_path,
     });
+    defer freeChildResult(pull_result, allocator);
 
     if (pull_result.term.Exited != 0) {
         log.err("{s}: Failed to pull repository: {d}, {s}", .{ self.name, pull_result.term.Exited, pull_result.stderr });
@@ -101,6 +105,7 @@ fn build(
             .argv = step.args,
             .cwd = tool_path,
         });
+        defer freeChildResult(cmd, allocator);
 
         if (cmd.term.Exited != 0) {
             log.err(
@@ -142,4 +147,26 @@ pub fn save(self: *const Tool, allocator: Allocator) !void {
 
     try tool_file.seekTo(0);
     try tool_file.writeAll(new_contents);
+}
+
+pub fn loadAll(allocator: Allocator) !std.json.Parsed([]*const Tool) {
+    const tool_fp = try std.mem.concat(allocator, u8, &.{ files.app_data_dir, std.fs.path.sep_str, "tools.json" });
+    defer allocator.free(tool_fp);
+
+    if (!files.pathExists(tool_fp)) {
+        return error.FileNotFound;
+    }
+
+    var tool_file = try std.fs.openFileAbsolute(tool_fp, .{ .mode = .read_write });
+    defer tool_file.close();
+
+    const tools_contents = try tool_file.readToEndAlloc(allocator, 1 << 16);
+    defer allocator.free(tools_contents);
+
+    return try std.json.parseFromSlice([]*const Tool, allocator, tools_contents, .{ .allocate = .alloc_always });
+}
+
+fn freeChildResult(result: std.process.Child.RunResult, allocator: Allocator) void {
+    allocator.free(result.stdout);
+    allocator.free(result.stderr);
 }

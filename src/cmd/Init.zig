@@ -12,17 +12,19 @@ const Init = @This();
 pub fn command() Command {
     return Command{
         .name = "init",
+        .helpFn = help,
         .isMatchFn = isMatch,
         .parseFn = parse,
-        .helpFn = help,
     };
 }
 
 pub fn help() []const u8 {
     return 
-    \\ init
-    \\ ----
-    \\ Initialise the tool manager.
+    \\init
+    \\----
+    \\Initialise the tool manager.
+    \\
+    \\
     ;
 }
 
