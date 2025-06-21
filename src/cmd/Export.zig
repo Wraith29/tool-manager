@@ -21,12 +21,10 @@ pub fn command() Command {
     };
 }
 
+pub fn deinit(_: *anyopaque, _: Allocator) void {}
+
 pub fn help() []const u8 {
-    return 
-    \\export
-    \\------
-    \\Export your tools so that they can be imported elsewhere
-    ;
+    return "TODO: Implement export help message";
 }
 
 pub fn isMatch(cmd: []const u8) bool {
@@ -39,7 +37,7 @@ pub fn isMatch(cmd: []const u8) bool {
     return false;
 }
 
-pub fn parse(args: []const []const u8) Command.ParseError!Executable {
+pub fn parse(_: Allocator, args: []const []const u8) Command.ParseError!Executable {
     var exe = Export{ .outfile = null };
 
     if (args.len >= 3) {
@@ -49,6 +47,7 @@ pub fn parse(args: []const []const u8) Command.ParseError!Executable {
     return Executable{
         .ptr = &exe,
         .executeFn = execute,
+        .deinitFn = deinit,
     };
 }
 

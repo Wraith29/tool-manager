@@ -19,22 +19,23 @@ pub fn command() Command {
     };
 }
 
+pub fn deinit(_: *anyopaque, _: Allocator) void {}
+
 pub fn help() []const u8 {
-    return 
-    \\
-    ;
+    return "TODO: Implement List help message";
 }
 
 pub fn isMatch(cmd: []const u8) bool {
     return std.mem.eql(u8, cmd, "list");
 }
 
-pub fn parse(_: []const []const u8) Command.ParseError!Executable {
+pub fn parse(_: Allocator, _: []const []const u8) Command.ParseError!Executable {
     var exe = List{};
 
     return Executable{
         .ptr = &exe,
         .executeFn = execute,
+        .deinitFn = deinit,
     };
 }
 

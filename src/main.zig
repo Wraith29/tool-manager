@@ -86,3 +86,7 @@ pub fn main() !void {
     const cli = Cli.init(allocator);
     try cli.run();
 }
+
+test {
+    std.testing.refAllDeclsRecursive(@This());
+}

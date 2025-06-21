@@ -1,19 +1,19 @@
 const std = @import("std");
-const log = std.log.scoped(.cli);
 const Allocator = std.mem.Allocator;
 
 const Command = @import("cmd/Command.zig");
 const Executable = @import("cmd/Executable.zig");
-const Init = @import("cmd/Init.zig");
-const Install = @import("cmd/Install.zig");
 const Export = @import("cmd/Export.zig");
+const Init = @import("cmd/Init.zig");
+const Use = @import("cmd/Use.zig");
 const List = @import("cmd/List.zig");
 
+const log = std.log.scoped(.cli);
 const Cli = @This();
 
 const commands = [_]Command{
     Init.command(),
-    Install.command(),
+    Use.command(),
     Export.command(),
     List.command(),
 };
@@ -31,14 +31,17 @@ pub fn run(self: *const Cli) !void {
     defer std.process.argsFree(self.allocator, args);
 
     if (args.len <= 1) {
-        try std.io.getStdOut().writeAll(help());
+        const help_msg = try self.help();
+        defer self.allocator.free(help_msg);
+
+        try std.io.getStdOut().writeAll(help_msg);
         return;
     }
 
     const exe: Executable = inline for (commands) |command| {
         log.info("Checking {s}", .{command.name});
         if (command.isMatch(args[1])) {
-            break command.parse(args) catch |err| switch (err) {
+            break command.parse(self.allocator, args) catch |err| switch (err) {
                 error.MissingPositionalArgument => {
                     var stdout = std.io.getStdOut();
                     try stdout.writeAll("Missing required positional argument\n");
@@ -46,30 +49,31 @@ pub fn run(self: *const Cli) !void {
 
                     return err;
                 },
+                else => return err,
             };
         }
     } else {
-        try std.io.getStdOut().writeAll(help());
+        const help_msg = try self.help();
+        defer self.allocator.free(help_msg);
+
+        try std.io.getStdOut().writeAll(help_msg);
         return error.NoCommandProvided;
     };
-
+    defer exe.deinit(self.allocator);
     try exe.execute(self.allocator);
 }
 
-fn help() []const u8 {
-    return 
-    \\tool-manager
-    \\------------
-    \\
-    \\commands:
-    \\  init
-    \\    Initialise the tool manager.
-    \\    Will prompt for the tool installation directory.
-    \\
-    \\  install <name>
-    \\    Install the given tool
-    \\    Will prompt for the git repository link, as well as build / install steps.
-    \\
-    \\
-    ;
+fn help(self: *const Cli) ![]const u8 {
+    log.info("Building help message", .{});
+    var help_buf = std.ArrayList(u8).init(self.allocator);
+
+    try help_buf.appendSlice("tool-manager\n\n");
+
+    inline for (commands) |cmd| {
+        log.info("Appending help for {s}", .{cmd.name});
+        try help_buf.appendSlice(comptime cmd.help() ++ "\n");
+    }
+
+    log.info("Built help message", .{});
+    return try help_buf.toOwnedSlice();
 }

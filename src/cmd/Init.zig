@@ -22,20 +22,14 @@ pub fn command() Command {
 }
 
 pub fn help() []const u8 {
-    return 
-    \\init
-    \\----
-    \\Initialise the tool manager.
-    \\
-    \\
-    ;
+    return "TODO: Implement Init help message";
 }
 
 pub fn isMatch(cmd: []const u8) bool {
     return std.mem.eql(u8, cmd, "init");
 }
 
-pub fn parse(_: []const []const u8) !Executable {
+pub fn parse(_: Allocator, _: []const []const u8) !Executable {
     var self = Init{};
 
     return Executable{

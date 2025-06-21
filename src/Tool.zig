@@ -6,6 +6,7 @@ const Child = std.process.Child;
 
 const files = @import("files.zig");
 const Config = @import("Config.zig");
+const Git = @import("Git.zig");
 
 const Tool = @This();
 
@@ -17,6 +18,7 @@ pub const Step = struct {
 name: []const u8,
 repository: []const u8,
 install_steps: []*Step,
+version: Git.Version,
 
 fn getToolPath(self: *const Tool, allocator: Allocator, cfg: *const Config) ![]const u8 {
     return try std.fs.path.join(allocator, &.{ cfg.install_directory, self.name });
@@ -28,68 +30,22 @@ pub fn install(self: *const Tool, allocator: Allocator, cfg: *const Config) !voi
     defer allocator.free(tool_path);
 
     log.info("Searching for {s} @ {s}", .{ self.name, tool_path });
-    if (!files.pathExists(tool_path)) {
-        log.info("{s} not found. Downloading", .{self.name});
-        try self.downloadRepository(allocator, tool_path);
+
+    if (files.pathExists(tool_path)) {
+        log.info("{s} found @ {s}", .{ self.name, tool_path });
+        const updates_found = try Git.fetch(allocator, tool_path);
+        if (updates_found) {
+            log.info("{s} has changes to pull", .{self.name});
+            try Git.pull(allocator, tool_path);
+        }
+        log.info("{s} is at latest version", .{self.name});
     } else {
-        log.info("{s} found. Updating to latest version", .{self.name});
-        try self.updateRepository(allocator, tool_path);
+        log.info("{s} not found. Cloning into {s}", .{ self.name, tool_path });
+        try Git.clone(allocator, self.repository, tool_path, self.version);
+        log.info("{s} cloned into {s}", .{ self.name, tool_path });
     }
 
-    log.info("{s} is at the latest version. Rebuilding", .{self.name});
     try self.build(allocator, tool_path);
-}
-
-fn downloadRepository(
-    self: *const Tool,
-    allocator: Allocator,
-    tool_path: []const u8,
-) !void {
-    const clone_result = try Child.run(.{
-        .allocator = allocator,
-        .argv = &.{ "git", "clone", self.repository, tool_path, "--quiet" },
-    });
-    defer freeChildResult(clone_result, allocator);
-
-    if (clone_result.term.Exited != 0) {
-        log.err("{s}: Failed to clone repository: {d}, {s}", .{ self.name, clone_result.term.Exited, clone_result.stderr });
-        return error.DownloadFailed;
-    }
-}
-
-fn updateRepository(
-    self: *const Tool,
-    allocator: Allocator,
-    tool_path: []const u8,
-) !void {
-    const fetch_result = try Child.run(.{
-        .allocator = allocator,
-        .argv = &.{ "git", "fetch" },
-        .cwd = tool_path,
-    });
-    defer freeChildResult(fetch_result, allocator);
-
-    if (fetch_result.term.Exited != 0) {
-        log.err("{s}: Failed to fetch repository: {d}, {s}", .{ self.name, fetch_result.term.Exited, fetch_result.stderr });
-        return error.FetchFailed;
-    }
-
-    if (fetch_result.stdout.len == 0) {
-        log.info("{s}: No changes to fetch.", .{self.name});
-        return;
-    }
-
-    const pull_result = try Child.run(.{
-        .allocator = allocator,
-        .argv = &.{ "git", "pull" },
-        .cwd = tool_path,
-    });
-    defer freeChildResult(pull_result, allocator);
-
-    if (pull_result.term.Exited != 0) {
-        log.err("{s}: Failed to pull repository: {d}, {s}", .{ self.name, pull_result.term.Exited, pull_result.stderr });
-        return error.PullFailed;
-    }
 }
 
 fn build(
@@ -98,12 +54,10 @@ fn build(
     tool_path: []const u8,
 ) !void {
     for (self.install_steps) |step| {
+        log.info("{s} running {s}", .{ self.name, step.name });
+
         const tmp = try std.mem.join(allocator, " ", step.args);
         defer allocator.free(tmp);
-
-        std.debug.print("\n\nExecuting Command: '{s}'\n\n", .{tmp});
-
-        log.info("{s}: Running {s} -> {s}", .{ self.name, step.name, tmp });
 
         const cmd = try Child.run(.{
             .allocator = allocator,
