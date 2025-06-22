@@ -33,10 +33,24 @@ pub fn clone(
     }
 
     if (version == .tag)
-        try checkout(allocator, path, version.tag);
+        try checkoutTag(allocator, path, version.tag);
 }
 
-fn checkout(allocator: Allocator, path: []const u8, tag_name: []const u8) !void {
+pub fn checkoutBranch(allocator: Allocator, path: []const u8, branch_name: []const u8) !void {
+    const result = try Child.run(.{
+        .allocator = allocator,
+        .argv = &.{ "git", "checkout", branch_name },
+        .cwd = path,
+    });
+    defer freeResult(allocator, result);
+
+    if (result.term.Exited != 0) {
+        log.err("Branch Checkout Failed: {s}", .{result.stderr});
+        return error.CheckoutFailed;
+    }
+}
+
+pub fn checkoutTag(allocator: Allocator, path: []const u8, tag_name: []const u8) !void {
     const tag_str = try std.mem.concat(allocator, u8, &.{ "tags/", tag_name });
     defer allocator.free(tag_str);
 

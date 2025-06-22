@@ -1,13 +1,14 @@
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 
+const args = @import("args.zig");
 const Command = @import("cmd/Command.zig");
 const Executable = @import("cmd/Executable.zig");
 const Export = @import("cmd/Export.zig");
 const Init = @import("cmd/Init.zig");
-const Use = @import("cmd/Use.zig");
 const List = @import("cmd/List.zig");
-const args = @import("args.zig");
+const Update = @import("cmd/Update.zig");
+const Use = @import("cmd/Use.zig");
 
 const log = std.log.scoped(.cli);
 const Cli = @This();
@@ -18,18 +19,21 @@ const help =
     \\usage:
     \\  tm init
     \\  tm use <repository> [--name=<tool_name>] [--multi-step] [--branch=<branch>|--tag=<tag>]
+    \\  tm update [<tool>] 
     \\  tm export [<export_file>]
     \\  tm list
     \\
     \\options:
     \\  -h, --help    Show the help message for the given command
+    \\
 ;
 
 const commands = [_]Command{
-    Init.command(),
-    Use.command(),
     Export.command(),
+    Init.command(),
     List.command(),
+    Update.command(),
+    Use.command(),
 };
 
 allocator: Allocator,

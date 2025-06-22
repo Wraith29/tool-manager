@@ -48,6 +48,28 @@ pub fn install(self: *const Tool, allocator: Allocator, cfg: *const Config) !voi
     try self.build(allocator, tool_path);
 }
 
+pub fn update(self: *const Tool, allocator: Allocator, new_version: ?Git.Version, cfg: *const Config) !void {
+    const tool_path = try self.getToolPath(allocator, cfg);
+    defer allocator.free(tool_path);
+
+    if (!files.pathExists(tool_path)) {
+        log.err("{s} was not found at expected location ({s})", .{ self.name, tool_path });
+        return error.ToolNotFound;
+    }
+
+    _ = try Git.fetch(allocator, tool_path);
+
+    if (new_version) |version| {
+        switch (version) {
+            .default => {},
+            .branch => |b| try Git.checkoutBranch(allocator, tool_path, b),
+            .tag => |t| try Git.checkoutTag(allocator, tool_path, t),
+        }
+    }
+
+    try Git.pull(allocator, tool_path);
+}
+
 fn build(
     self: *const Tool,
     allocator: Allocator,
