@@ -19,8 +19,6 @@ pub fn command() Command {
     };
 }
 
-pub fn deinit(_: *anyopaque, _: Allocator) void {}
-
 pub fn help() []const u8 {
     return "TODO: Implement List help message";
 }
@@ -38,6 +36,8 @@ pub fn parse(_: Allocator, _: []const []const u8) Command.ParseError!Executable 
         .deinitFn = deinit,
     };
 }
+
+pub fn deinit(_: *anyopaque, _: Allocator) void {}
 
 pub fn execute(_: *anyopaque, allocator: Allocator) !void {
     const tools = try Tool.loadAll(allocator);

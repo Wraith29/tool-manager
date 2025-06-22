@@ -15,10 +15,10 @@ pub fn clone(
     path: []const u8,
     version: Version,
 ) !void {
-    const argv = switch (version) {
+    const argv: []const []const u8 = switch (version) {
         .default => &.{ "git", "clone", repository, path, "--quiet" },
         .branch => |b| &.{ "git", "clone", repository, path, "--quiet", "--branch", b },
-        .tag => |t| &.{ "git", "clone", repository, path, "--quiet", "--tag", t },
+        .tag => &.{ "git", "clone", repository, path, "--quiet", "--tags" },
     };
 
     const result = try Child.run(.{
@@ -30,6 +30,26 @@ pub fn clone(
     if (result.term.Exited != 0) {
         log.err("Clone Failed: {s}", .{result.stderr});
         return error.CloneFailed;
+    }
+
+    if (version == .tag)
+        try checkout(allocator, path, version.tag);
+}
+
+fn checkout(allocator: Allocator, path: []const u8, tag_name: []const u8) !void {
+    const tag_str = try std.mem.concat(allocator, u8, &.{ "tags/", tag_name });
+    defer allocator.free(tag_str);
+
+    const result = try Child.run(.{
+        .allocator = allocator,
+        .argv = &.{ "git", "checkout", tag_str },
+        .cwd = path,
+    });
+    defer freeResult(allocator, result);
+
+    if (result.term.Exited != 0) {
+        log.err("Checkout Failed: {s}", .{result.stderr});
+        return error.CheckoutFailed;
     }
 }
 

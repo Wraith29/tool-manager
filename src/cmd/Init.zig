@@ -35,8 +35,11 @@ pub fn parse(_: Allocator, _: []const []const u8) !Executable {
     return Executable{
         .ptr = &self,
         .executeFn = execute,
+        .deinitFn = deinit,
     };
 }
+
+pub fn deinit(_: *anyopaque, _: Allocator) void {}
 
 pub fn execute(_: *anyopaque, allocator: Allocator) !void {
     if (!files.pathExists(files.app_data_dir)) {

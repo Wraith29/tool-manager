@@ -14,8 +14,8 @@ pub const ParseError = error{
 
 name: []const u8,
 helpFn: *const fn () []const u8,
-isMatchFn: *const fn (cmd: []const u8) bool,
-parseFn: *const fn (allocator: Allocator, args: []const []const u8) ParseError!Executable,
+isMatchFn: *const fn ([]const u8) bool,
+parseFn: *const fn (Allocator, []const []const u8) ParseError!Executable,
 
 pub fn help(self: Command) []const u8 {
     return self.helpFn();

@@ -60,6 +60,7 @@ pub fn run(self: *const Cli) !void {
         return error.NoCommandProvided;
     };
     defer exe.deinit(self.allocator);
+
     try exe.execute(self.allocator);
 }
 

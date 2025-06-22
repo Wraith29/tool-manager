@@ -21,8 +21,6 @@ pub fn command() Command {
     };
 }
 
-pub fn deinit(_: *anyopaque, _: Allocator) void {}
-
 pub fn help() []const u8 {
     return "TODO: Implement export help message";
 }
@@ -37,18 +35,24 @@ pub fn isMatch(cmd: []const u8) bool {
     return false;
 }
 
-pub fn parse(_: Allocator, args: []const []const u8) Command.ParseError!Executable {
-    var exe = Export{ .outfile = null };
+pub fn parse(allocator: Allocator, args: []const []const u8) Command.ParseError!Executable {
+    var exe = try allocator.create(Export);
+    exe.outfile = null;
 
     if (args.len >= 3) {
         exe.outfile = args[2];
     }
 
     return Executable{
-        .ptr = &exe,
+        .ptr = exe,
         .executeFn = execute,
         .deinitFn = deinit,
     };
+}
+
+pub fn deinit(ptr: *anyopaque, allocator: Allocator) void {
+    const self: *Export = @ptrCast(@alignCast(ptr));
+    allocator.destroy(self);
 }
 
 pub fn execute(ptr: *anyopaque, allocator: Allocator) !void {
