@@ -10,17 +10,24 @@ const Tool = @import("../Tool.zig");
 const log = std.log.scoped(.list_cmd);
 const List = @This();
 
+const help =
+    \\tm list
+    \\  list all installed tools, and the repositories they live in
+    \\
+    \\usage:
+    \\  tm list
+    \\
+    \\options:
+    \\  -h, --help    Show this message
+;
+
 pub fn command() Command {
     return Command{
         .name = "list",
-        .helpFn = help,
+        .help = help,
         .isMatchFn = isMatch,
         .parseFn = parse,
     };
-}
-
-pub fn help() []const u8 {
-    return "TODO: Implement List help message";
 }
 
 pub fn isMatch(cmd: []const u8) bool {

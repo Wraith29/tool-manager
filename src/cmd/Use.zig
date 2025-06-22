@@ -16,6 +16,23 @@ const Executable = @import("Executable.zig");
 const log = std.log.scoped(.use_cmd);
 const Use = @This();
 
+const help =
+    \\tm use
+    \\  Install the given tool
+    \\
+    \\usage:
+    \\  tm use <repository> [--name=<tool_name>] [--multi-step] [--branch=<branch>|--tag=<tag>]
+    \\
+    \\options:
+    \\  -h, --help        Show this message
+    \\  --name=<name>     Install the given tool under a specified name, rather than the name of the repository
+    \\                    (Note: this does not effect the binary name, that is determined by the tool)
+    \\  --multi-step      Allow the tool to have a multi-step installation process (i.e. if dependencies are required to be installed)
+    \\  --branch=<branch> Install the given branch of the tool, rather than the git default branch
+    \\  --tag=<tag>       Install the given tag of the tool, rather than the git default branch
+    \\
+;
+
 repository: []const u8,
 tool_name: ?[]const u8 = null,
 is_multi_step: bool = false,
@@ -24,14 +41,10 @@ version: Git.Version = .default,
 pub fn command() Command {
     return Command{
         .name = "install",
+        .help = help,
         .isMatchFn = isMatch,
         .parseFn = parse,
-        .helpFn = help,
     };
-}
-
-pub fn help() []const u8 {
-    return "TODO: Implement `Use` help message";
 }
 
 pub fn isMatch(cmd: []const u8) bool {

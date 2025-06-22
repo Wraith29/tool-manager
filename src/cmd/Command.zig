@@ -13,13 +13,9 @@ pub const ParseError = error{
 } || Allocator.Error;
 
 name: []const u8,
-helpFn: *const fn () []const u8,
+help: []const u8,
 isMatchFn: *const fn ([]const u8) bool,
 parseFn: *const fn (Allocator, []const []const u8) ParseError!Executable,
-
-pub fn help(self: Command) []const u8 {
-    return self.helpFn();
-}
 
 pub fn isMatch(self: Command, cmd: []const u8) bool {
     return self.isMatchFn(cmd);

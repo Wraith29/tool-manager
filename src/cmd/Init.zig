@@ -12,17 +12,24 @@ const readUntilNewLineAlloc = @import("../reader_ext.zig").readUntilNewLineAlloc
 const log = std.log.scoped(.init_cmd);
 const Init = @This();
 
+const help =
+    \\tm init
+    \\  initialise the tool-manager, setting up the config
+    \\
+    \\usage:
+    \\  tm init
+    \\
+    \\options:
+    \\  -h, --help    Show this message
+;
+
 pub fn command() Command {
     return Command{
         .name = "init",
-        .helpFn = help,
+        .help = help,
         .isMatchFn = isMatch,
         .parseFn = parse,
     };
-}
-
-pub fn help() []const u8 {
-    return "TODO: Implement Init help message";
 }
 
 pub fn isMatch(cmd: []const u8) bool {

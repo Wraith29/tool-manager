@@ -10,19 +10,28 @@ const Tool = @import("../Tool.zig");
 const log = std.log.scoped(.export_cmd);
 const Export = @This();
 
+const help =
+    \\tm export
+    \\
+    \\usage:
+    \\  tm export [<outfile>]
+    \\
+    \\options:
+    \\  -h, --help    Show this message
+    \\  outfile       Provide a file for the tools to be exported to.
+    \\                (Default: stdout)
+    \\
+;
+
 outfile: ?[]const u8,
 
 pub fn command() Command {
     return Command{
         .name = "export",
-        .helpFn = help,
+        .help = help,
         .isMatchFn = isMatch,
         .parseFn = parse,
     };
-}
-
-pub fn help() []const u8 {
-    return "TODO: Implement export help message";
 }
 
 pub fn isMatch(cmd: []const u8) bool {
