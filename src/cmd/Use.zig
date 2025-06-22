@@ -118,11 +118,14 @@ pub fn execute(ptr: *anyopaque, allocator: Allocator) !void {
         install_steps.deinit();
     }
 
+    var env_map = try std.process.getEnvMap(allocator);
+    defer env_map.deinit();
+
     if (self.is_multi_step) {
-        while (try getInstallStep(allocator)) |step|
+        while (try getInstallStep(allocator, &env_map)) |step|
             try install_steps.append(step);
     } else {
-        const step = try getInstallStep(allocator);
+        const step = try getInstallStep(allocator, &env_map);
         if (step == null) {
             log.err("Expected an installation step", .{});
             return error.InvalidInstallStep;
@@ -160,7 +163,7 @@ fn getInstallName(allocator: Allocator, repository: []const u8) ![]const u8 {
     return tool_name;
 }
 
-fn getInstallStep(allocator: Allocator) !?*Tool.Step {
+fn getInstallStep(allocator: Allocator, env_map: *const std.process.EnvMap) !?*Tool.Step {
     var writer = std.io.getStdOut().writer();
     const reader = std.io.getStdIn().reader();
 
@@ -180,10 +183,22 @@ fn getInstallStep(allocator: Allocator) !?*Tool.Step {
     var arg_iter = std.mem.splitSequence(u8, step_cmd, " ");
 
     while (arg_iter.next()) |arg| {
-        const buf = try allocator.alloc(u8, arg.len);
-        @memcpy(buf, arg);
+        if (std.mem.containsAtLeast(u8, arg, 1, "$")) {
+            const ev_data = try getEnvVarName(allocator, arg);
+            defer allocator.free(ev_data.name);
+            log.debug("Looking for {s}", .{ev_data.name});
 
-        try step_args.append(buf);
+            const env_var = env_map.get(ev_data.name[1..]) orelse return error.EnvVarNotFound;
+            log.debug("Expanded to {s}", .{env_var});
+
+            const arg_expanded = try std.mem.replaceOwned(u8, allocator, arg, ev_data.name, env_var);
+            try step_args.append(arg_expanded);
+        } else {
+            const buf = try allocator.alloc(u8, arg.len);
+            @memcpy(buf, arg);
+
+            try step_args.append(buf);
+        }
     }
 
     var step = try allocator.create(Tool.Step);
@@ -192,4 +207,30 @@ fn getInstallStep(allocator: Allocator) !?*Tool.Step {
     step.args = try step_args.toOwnedSlice();
 
     return step;
+}
+
+fn getEnvVarName(allocator: Allocator, str: []const u8) !struct { name: []const u8, start: usize, end: usize } {
+    return switch (builtin.target.os.tag) {
+        .windows => error.NotImplemented,
+        else => {
+            const start_idx = std.mem.indexOf(u8, str, "$") orelse return error.InvalidEnvVar;
+
+            var idx: usize = start_idx;
+            var env_var_name = ArrayList(u8).init(allocator);
+
+            while (idx < str.len) : (idx += 1) {
+                const chr = str[idx];
+                if (!std.ascii.isAlphanumeric(chr) and chr != '$')
+                    break;
+
+                try env_var_name.append(chr);
+            }
+
+            return .{
+                .name = try env_var_name.toOwnedSlice(),
+                .start = start_idx,
+                .end = idx,
+            };
+        },
+    };
 }
