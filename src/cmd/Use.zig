@@ -158,6 +158,8 @@ pub fn execute(ptr: *anyopaque, allocator: Allocator) !void {
     defer cfg.destroy(allocator);
 
     try tool.install(allocator, cfg);
+
+    try tool.save(allocator);
 }
 
 fn getInstallName(allocator: Allocator, repository: []const u8) ![]const u8 {

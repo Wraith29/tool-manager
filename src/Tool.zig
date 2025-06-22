@@ -68,6 +68,8 @@ pub fn update(self: *const Tool, allocator: Allocator, new_version: ?Git.Version
     }
 
     try Git.pull(allocator, tool_path);
+
+    try self.build(allocator, tool_path);
 }
 
 fn build(

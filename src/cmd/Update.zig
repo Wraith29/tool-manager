@@ -88,9 +88,11 @@ pub fn execute(ptr: *anyopaque, allocator: Allocator) !void {
     const self: *Update = @ptrCast(@alignCast(ptr));
 
     if (self.tool_name != null) {
+        log.info("Updating {s}", .{self.tool_name.?});
         return try self.updateSingleTool(allocator);
     }
 
+    log.info("Updating all tools", .{});
     try self.updateAllTools(allocator);
 }
 
@@ -104,6 +106,7 @@ fn updateSingleTool(self: *Update, allocator: Allocator) !void {
     const selected_tool = self.tool_name.?;
 
     for (tools.value) |tool| {
+        log.info("Checking {s}", .{tool.name});
         if (!std.mem.eql(u8, selected_tool, tool.name)) {
             continue;
         }
