@@ -130,8 +130,7 @@ fn updateSingleTool(self: *Update, allocator: Allocator, tool_name: []const u8) 
     }
 }
 
-fn updateAllTools(self: *Update, allocator: Allocator) !void {
-    _ = self; // autofix
+fn updateAllTools(_: *Update, allocator: Allocator) !void {
     var tools_parsed = try Tool.loadAll(allocator);
     defer tools_parsed.deinit();
 
@@ -139,6 +138,8 @@ fn updateAllTools(self: *Update, allocator: Allocator) !void {
 
     const cfg = try Config.load(allocator);
     defer cfg.destroy(allocator);
+
+    var stdout = std.io.getStdOut().writer();
 
     const keys = tools.map.keys();
     const max_iter_count = try std.math.divCeil(usize, keys.len, cfg.max_threads);
@@ -154,7 +155,7 @@ fn updateAllTools(self: *Update, allocator: Allocator) !void {
         var thread_idx: usize = 0;
         while (thread_idx < thread_count) : (thread_idx += 1) {
             const tool_key = keys[idx * cfg.max_threads + thread_idx];
-            log.info("Updating {s}", .{tool_key});
+            try stdout.print("Updating {s}\n", .{tool_key});
 
             const tool = tools.map.get(tool_key) orelse {
                 log.err("Unexpected error searching for {s}", .{tool_key});
