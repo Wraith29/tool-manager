@@ -81,6 +81,14 @@ pub fn deinit(ptr: *anyopaque, allocator: Allocator) void {
         allocator.free(tn);
     }
 
+    if (self.version) |version| {
+        switch (version) {
+            .default => {},
+            .branch => |b| allocator.free(b),
+            .tag => |t| allocator.free(t),
+        }
+    }
+
     allocator.destroy(self);
 }
 
@@ -97,7 +105,7 @@ pub fn execute(ptr: *anyopaque, allocator: Allocator) !void {
 }
 
 fn updateSingleTool(self: *Update, allocator: Allocator) !void {
-    const tools = try Tool.loadAll(allocator);
+    var tools = try Tool.loadAll(allocator);
     defer tools.deinit();
 
     const cfg = try Config.load(allocator);
@@ -105,7 +113,8 @@ fn updateSingleTool(self: *Update, allocator: Allocator) !void {
 
     const selected_tool = self.tool_name.?;
 
-    for (tools.value) |tool| {
+    for (tools.value.map.keys()) |key| {
+        const tool = tools.value.map.get(key) orelse unreachable;
         log.info("Checking {s}", .{tool.name});
         if (!std.mem.eql(u8, selected_tool, tool.name)) {
             continue;

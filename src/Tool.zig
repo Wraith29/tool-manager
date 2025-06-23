@@ -19,6 +19,7 @@ name: []const u8,
 repository: []const u8,
 install_steps: []*Step,
 version: Git.Version,
+updated_at: i64,
 
 fn getToolPath(self: *const Tool, allocator: Allocator, cfg: *const Config) ![]const u8 {
     return try std.fs.path.join(allocator, &.{ cfg.install_directory, self.name });
@@ -48,7 +49,9 @@ pub fn install(self: *const Tool, allocator: Allocator, cfg: *const Config) !voi
     try self.build(allocator, tool_path);
 }
 
-pub fn update(self: *const Tool, allocator: Allocator, new_version: ?Git.Version, cfg: *const Config) !void {
+pub fn update(self: *Tool, allocator: Allocator, new_version: ?Git.Version, cfg: *const Config) !void {
+    self.updated_at = std.time.timestamp();
+
     const tool_path = try self.getToolPath(allocator, cfg);
     defer allocator.free(tool_path);
 
@@ -65,11 +68,15 @@ pub fn update(self: *const Tool, allocator: Allocator, new_version: ?Git.Version
             .branch => |b| try Git.checkoutBranch(allocator, tool_path, b),
             .tag => |t| try Git.checkoutTag(allocator, tool_path, t),
         }
+
+        self.version = version;
     }
 
-    try Git.pull(allocator, tool_path);
+    if (self.version != .tag)
+        try Git.pull(allocator, tool_path);
 
     try self.build(allocator, tool_path);
+    try self.save(allocator);
 }
 
 fn build(
@@ -116,23 +123,19 @@ pub fn save(self: *const Tool, allocator: Allocator) !void {
     const tools_contents = try tool_file.readToEndAlloc(allocator, 1 << 16);
     defer allocator.free(tools_contents);
 
-    const tools_json = try std.json.parseFromSlice([]*const Tool, allocator, tools_contents, .{ .allocate = .alloc_always });
+    var tools_json = try std.json.parseFromSlice(std.json.ArrayHashMap(*const Tool), allocator, tools_contents, .{ .allocate = .alloc_always });
     defer tools_json.deinit();
 
-    var tools_array = try ArrayListUnmanaged(*const Tool).initCapacity(allocator, tools_json.value.len + 1);
-    defer tools_array.deinit(allocator);
+    try tools_json.value.map.put(allocator, self.name, self);
 
-    try tools_array.appendSlice(allocator, tools_json.value);
-    try tools_array.append(allocator, self);
-
-    const new_contents = try std.json.stringifyAlloc(allocator, tools_array.items, .{ .whitespace = .indent_4 });
+    const new_contents = try std.json.stringifyAlloc(allocator, tools_json.value, .{ .whitespace = .indent_4 });
     defer allocator.free(new_contents);
 
     try tool_file.seekTo(0);
     try tool_file.writeAll(new_contents);
 }
 
-pub fn loadAll(allocator: Allocator) !std.json.Parsed([]*const Tool) {
+pub fn loadAll(allocator: Allocator) !std.json.Parsed(std.json.ArrayHashMap(*Tool)) {
     const tool_fp = try std.fs.path.join(allocator, &.{ files.app_data_dir, "tools.json" });
     defer allocator.free(tool_fp);
 
@@ -146,7 +149,7 @@ pub fn loadAll(allocator: Allocator) !std.json.Parsed([]*const Tool) {
     const tools_contents = try tool_file.readToEndAlloc(allocator, 1 << 16);
     defer allocator.free(tools_contents);
 
-    return try std.json.parseFromSlice([]*const Tool, allocator, tools_contents, .{ .allocate = .alloc_always });
+    return try std.json.parseFromSlice(std.json.ArrayHashMap(*Tool), allocator, tools_contents, .{ .allocate = .alloc_always });
 }
 
 fn freeChildResult(result: std.process.Child.RunResult, allocator: Allocator) void {

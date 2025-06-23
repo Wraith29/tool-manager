@@ -52,7 +52,8 @@ pub fn execute(_: *anyopaque, allocator: Allocator) !void {
 
     var writer = std.io.getStdOut().writer();
 
-    for (tools.value) |tool| {
+    for (tools.value.map.keys()) |key| {
+        const tool = tools.value.map.get(key) orelse unreachable;
         try writer.print("{s} ({s})\n", .{ tool.name, tool.repository });
     }
 }

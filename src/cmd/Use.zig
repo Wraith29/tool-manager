@@ -152,6 +152,7 @@ pub fn execute(ptr: *anyopaque, allocator: Allocator) !void {
         .name = tool_name,
         .version = self.version,
         .install_steps = install_steps.items,
+        .updated_at = std.time.timestamp(),
     };
 
     var cfg = try Config.load(allocator);
