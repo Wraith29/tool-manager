@@ -1,6 +1,7 @@
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 const builtin = @import("builtin");
+const Thread = std.Thread;
 
 const Config = @import("../Config.zig");
 const files = @import("../files.zig");
@@ -26,6 +27,7 @@ const help =
     \\  tool              Pass in an optional tool name to only update that tool
     \\  --branch=<branch> Install the given branch of the tool, rather than the git default branch
     \\  --tag=<tag>       Install the given tag of the tool, rather than the git default branch
+    \\
 ;
 
 tool_name: ?[]const u8 = null,
@@ -50,22 +52,26 @@ pub fn isMatch(cmd: []const u8) bool {
 pub fn parse(allocator: Allocator, arguments: []const []const u8) Command.ParseError!Executable {
     var exe = try allocator.create(Update);
 
-    if (arguments.len > 2) {
+    exe.tool_name = if (arguments.len >= 3) blk: {
         const tool_name = try allocator.alloc(u8, arguments[2].len);
         @memcpy(tool_name, arguments[2]);
 
-        exe.tool_name = tool_name;
-    }
+        break :blk tool_name;
+    } else null;
 
     const branch = try args.flagValue(allocator, arguments, "--branch");
     const tag = try args.flagValue(allocator, arguments, "--tag");
 
-    exe.version = if (branch) |b|
-        Git.Version{ .branch = b }
-    else if (tag) |t|
-        Git.Version{ .tag = t }
+    // The version can only be configured on an individual level
+    if (exe.tool_name != null)
+        exe.version = if (branch) |b|
+            Git.Version{ .branch = b }
+        else if (tag) |t|
+            Git.Version{ .tag = t }
+        else
+            null
     else
-        null;
+        exe.version = null;
 
     return Executable{
         .ptr = exe,
@@ -94,39 +100,76 @@ pub fn deinit(ptr: *anyopaque, allocator: Allocator) void {
 
 pub fn execute(ptr: *anyopaque, allocator: Allocator) !void {
     const self: *Update = @ptrCast(@alignCast(ptr));
+    log.info("Self: {any}", .{self});
 
-    if (self.tool_name != null) {
-        log.info("Updating {s}", .{self.tool_name.?});
-        return try self.updateSingleTool(allocator);
+    if (self.tool_name) |tool_name| {
+        log.info("Updating {s}", .{tool_name});
+        return try self.updateSingleTool(allocator, tool_name);
     }
 
     log.info("Updating all tools", .{});
     try self.updateAllTools(allocator);
 }
 
-fn updateSingleTool(self: *Update, allocator: Allocator) !void {
+fn updateSingleTool(self: *Update, allocator: Allocator, tool_name: []const u8) !void {
     var tools = try Tool.loadAll(allocator);
     defer tools.deinit();
 
     const cfg = try Config.load(allocator);
     defer cfg.destroy(allocator);
 
-    const selected_tool = self.tool_name.?;
-
     for (tools.value.map.keys()) |key| {
         const tool = tools.value.map.get(key) orelse unreachable;
         log.info("Checking {s}", .{tool.name});
-        if (!std.mem.eql(u8, selected_tool, tool.name)) {
+        if (!std.mem.eql(u8, tool_name, tool.name)) {
             continue;
         }
 
         try tool.update(allocator, self.version, cfg);
+        break;
     }
 }
 
 fn updateAllTools(self: *Update, allocator: Allocator) !void {
-    _ = self;
-    _ = allocator;
+    _ = self; // autofix
+    var tools_parsed = try Tool.loadAll(allocator);
+    defer tools_parsed.deinit();
 
-    log.info("Not Implemented", .{});
+    const tools = tools_parsed.value;
+
+    const cfg = try Config.load(allocator);
+    defer cfg.destroy(allocator);
+
+    const keys = tools.map.keys();
+    const max_iter_count = try std.math.divCeil(usize, keys.len, cfg.max_threads);
+
+    var idx: usize = 0;
+    while (idx < max_iter_count) : (idx += 1) {
+        const thread_count = keys.len - (idx * cfg.max_threads);
+        log.info("Iteration: {d}, Threads: {d}", .{ idx, thread_count });
+
+        var threads = try allocator.alloc(Thread, thread_count);
+        defer allocator.free(threads);
+
+        var thread_idx: usize = 0;
+        while (thread_idx < thread_count) : (thread_idx += 1) {
+            const tool_key = keys[idx * cfg.max_threads + thread_idx];
+            log.info("Updating {s}", .{tool_key});
+
+            const tool = tools.map.get(tool_key) orelse {
+                log.err("Unexpected error searching for {s}", .{tool_key});
+                unreachable;
+            };
+
+            threads[thread_idx] = try Thread.spawn(
+                .{ .allocator = allocator },
+                Tool.update,
+                .{ tool, allocator, null, cfg },
+            );
+        }
+
+        for (threads) |thread| {
+            thread.join();
+        }
+    }
 }
