@@ -28,7 +28,7 @@ pub fn clone(
     defer freeResult(allocator, result);
 
     if (result.term.Exited != 0) {
-        log.err("Clone Failed: {s}", .{result.stderr});
+        log.err("{s}: Clone Failed: {s}", .{ path, result.stderr });
         return error.CloneFailed;
     }
 
@@ -45,7 +45,7 @@ pub fn checkoutBranch(allocator: Allocator, path: []const u8, branch_name: []con
     defer freeResult(allocator, result);
 
     if (result.term.Exited != 0) {
-        log.err("Branch Checkout Failed: {s}", .{result.stderr});
+        log.err("{s}: Branch Checkout Failed: {s}", .{ path, result.stderr });
         return error.CheckoutFailed;
     }
 }
@@ -62,7 +62,7 @@ pub fn checkoutTag(allocator: Allocator, path: []const u8, tag_name: []const u8)
     defer freeResult(allocator, result);
 
     if (result.term.Exited != 0) {
-        log.err("Checkout Failed: {s}", .{result.stderr});
+        log.err("{s}: Checkout Failed: {s}", .{ path, result.stderr });
         return error.CheckoutFailed;
     }
 }
@@ -80,7 +80,7 @@ pub fn fetch(
     defer freeResult(allocator, result);
 
     if (result.term.Exited != 0) {
-        log.err("Fetch Failed: {s}", .{result.stderr});
+        log.err("{s}: Fetch Failed: {s}", .{ path, result.stderr });
         return error.FetchFailed;
     }
 
@@ -99,7 +99,7 @@ pub fn pull(
     defer freeResult(allocator, result);
 
     if (result.term.Exited != 0) {
-        log.err("Pull Failed: {s}", .{result.stderr});
+        log.err("{s}: Pull Failed: {s}", .{ path, result.stderr });
         return error.PullFailed;
     }
 }
