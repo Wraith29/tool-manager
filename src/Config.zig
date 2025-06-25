@@ -6,7 +6,6 @@ const files = @import("files.zig");
 
 const Config = @This();
 
-max_threads: usize = 4,
 install_directory: []const u8,
 
 pub fn load(allocator: Allocator) !*Config {
@@ -32,7 +31,6 @@ pub fn load(allocator: Allocator) !*Config {
 
     const cfg = try allocator.create(Config);
 
-    cfg.max_threads = json_obj.value.max_threads;
     cfg.install_directory = install_dir;
 
     return cfg;

@@ -142,35 +142,14 @@ fn updateAllTools(_: *Update, allocator: Allocator) !void {
     var stdout = std.io.getStdOut().writer();
 
     const keys = tools.map.keys();
-    const max_iter_count = try std.math.divCeil(usize, keys.len, cfg.max_threads);
+    for (keys) |key| {
+        try stdout.print("Updating {s}\n", .{key});
 
-    var idx: usize = 0;
-    while (idx < max_iter_count) : (idx += 1) {
-        const thread_count = keys.len - (idx * cfg.max_threads);
-        log.info("Iteration: {d}, Threads: {d}", .{ idx, thread_count });
+        const tool = tools.map.get(key) orelse {
+            log.err("Unexpected error searching for {s}", .{key});
+            unreachable;
+        };
 
-        var threads = try allocator.alloc(Thread, thread_count);
-        defer allocator.free(threads);
-
-        var thread_idx: usize = 0;
-        while (thread_idx < thread_count) : (thread_idx += 1) {
-            const tool_key = keys[idx * cfg.max_threads + thread_idx];
-            try stdout.print("Updating {s}\n", .{tool_key});
-
-            const tool = tools.map.get(tool_key) orelse {
-                log.err("Unexpected error searching for {s}", .{tool_key});
-                unreachable;
-            };
-
-            threads[thread_idx] = try Thread.spawn(
-                .{ .allocator = allocator },
-                Tool.update,
-                .{ tool, allocator, null, cfg },
-            );
-        }
-
-        for (threads) |thread| {
-            thread.join();
-        }
+        try tool.update(allocator, null, cfg);
     }
 }
