@@ -8,7 +8,7 @@ const files = @import("../files.zig");
 const Command = @import("Command.zig");
 const Executable = @import("Executable.zig");
 const Tool = @import("../Tool.zig");
-const Git = @import("../Git.zig");
+const git = @import("../git.zig");
 const args = @import("../args.zig");
 
 const log = std.log.scoped(.update_cmd);
@@ -31,7 +31,7 @@ const help =
 ;
 
 tool_name: ?[]const u8 = null,
-version: ?Git.Version = null,
+version: ?git.Version = null,
 
 pub fn command() Command {
     return Command{
@@ -65,9 +65,9 @@ pub fn parse(allocator: Allocator, arguments: []const []const u8) Command.ParseE
     // The version can only be configured on an individual level
     if (exe.tool_name != null)
         exe.version = if (branch) |b|
-            Git.Version{ .branch = b }
+            git.Version{ .branch = b }
         else if (tag) |t|
-            Git.Version{ .tag = t }
+            git.Version{ .tag = t }
         else
             null
     else

@@ -6,7 +6,7 @@ const builtin = @import("builtin");
 const args = @import("../args.zig");
 const Config = @import("../Config.zig");
 const files = @import("../files.zig");
-const Git = @import("../Git.zig");
+const git = @import("../git.zig");
 const readUntilNewLineAlloc = @import("../reader_ext.zig").readUntilNewLineAlloc;
 const string = @import("../string.zig");
 const Tool = @import("../Tool.zig");
@@ -36,7 +36,7 @@ const help =
 repository: []const u8,
 tool_name: ?[]const u8 = null,
 is_multi_step: bool = false,
-version: Git.Version = .default,
+version: git.Version = .default,
 
 pub fn command() Command {
     return Command{
@@ -58,7 +58,7 @@ pub fn parse(allocator: Allocator, arguments: []const []const u8) Command.ParseE
     }
 
     _ = std.Uri.parse(arguments[2]) catch |err| {
-        log.err("Invalid Git link: {!}", .{err});
+        log.err("Invalid git link: {!}", .{err});
         return error.InvalidArgument;
     };
 
@@ -71,9 +71,9 @@ pub fn parse(allocator: Allocator, arguments: []const []const u8) Command.ParseE
     const tag = try args.flagValue(allocator, arguments, "--tag");
 
     exe.version = if (branch) |b|
-        Git.Version{ .branch = b }
+        git.Version{ .branch = b }
     else if (tag) |t|
-        Git.Version{ .tag = t }
+        git.Version{ .tag = t }
     else
         .default;
 

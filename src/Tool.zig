@@ -6,7 +6,7 @@ const Child = std.process.Child;
 
 const files = @import("files.zig");
 const Config = @import("Config.zig");
-const Git = @import("Git.zig");
+const git = @import("git.zig");
 
 const Tool = @This();
 
@@ -18,7 +18,7 @@ pub const Step = struct {
 name: []const u8,
 repository: []const u8,
 install_steps: []*Step,
-version: Git.Version,
+version: git.Version,
 updated_at: i64,
 
 fn getToolPath(self: *const Tool, allocator: Allocator, cfg: *const Config) ![]const u8 {
@@ -34,22 +34,22 @@ pub fn install(self: *const Tool, allocator: Allocator, cfg: *const Config) !voi
 
     if (files.pathExists(tool_path)) {
         log.info("{s} found @ {s}", .{ self.name, tool_path });
-        const updates_found = try Git.fetch(allocator, tool_path);
+        const updates_found = try git.fetch(allocator, tool_path);
         if (updates_found) {
             log.info("{s} has changes to pull", .{self.name});
-            try Git.pull(allocator, tool_path);
+            try git.pull(allocator, tool_path);
         }
         log.info("{s} is at latest version", .{self.name});
     } else {
         log.info("{s} not found. Cloning into {s}", .{ self.name, tool_path });
-        try Git.clone(allocator, self.repository, tool_path, self.version);
+        try git.clone(allocator, self.repository, tool_path, self.version);
         log.info("{s} cloned into {s}", .{ self.name, tool_path });
     }
 
     try self.build(allocator, tool_path);
 }
 
-pub fn update(self: *Tool, allocator: Allocator, new_version: ?Git.Version, cfg: *const Config) !void {
+pub fn update(self: *Tool, allocator: Allocator, new_version: ?git.Version, cfg: *const Config) !void {
     self.updated_at = std.time.timestamp();
 
     const tool_path = try self.getToolPath(allocator, cfg);
@@ -60,20 +60,20 @@ pub fn update(self: *Tool, allocator: Allocator, new_version: ?Git.Version, cfg:
         return error.ToolNotFound;
     }
 
-    _ = try Git.fetch(allocator, tool_path);
+    _ = try git.fetch(allocator, tool_path);
 
     if (new_version) |version| {
         switch (version) {
             .default => {},
-            .branch => |b| try Git.checkoutBranch(allocator, tool_path, b),
-            .tag => |t| try Git.checkoutTag(allocator, tool_path, t),
+            .branch => |b| try git.checkoutBranch(allocator, tool_path, b),
+            .tag => |t| try git.checkoutTag(allocator, tool_path, t),
         }
 
         self.version = version;
     }
 
     if (self.version != .tag)
-        try Git.pull(allocator, tool_path);
+        try git.pull(allocator, tool_path);
 
     try self.build(allocator, tool_path);
     try self.save(allocator);
