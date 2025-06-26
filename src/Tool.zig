@@ -161,7 +161,12 @@ pub fn loadAll(allocator: Allocator) !std.json.Parsed(std.json.ArrayHashMap(*Too
     const tools_contents = try tool_file.readToEndAlloc(allocator, 1 << 16);
     defer allocator.free(tools_contents);
 
-    return try std.json.parseFromSlice(std.json.ArrayHashMap(*Tool), allocator, tools_contents, .{ .allocate = .alloc_always });
+    return try std.json.parseFromSlice(
+        std.json.ArrayHashMap(*Tool),
+        allocator,
+        tools_contents,
+        .{ .allocate = .alloc_always, .ignore_unknown_fields = true },
+    );
 }
 
 fn freeChildResult(result: std.process.Child.RunResult, allocator: Allocator) void {
