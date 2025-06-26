@@ -89,7 +89,6 @@ pub fn deinit(ptr: *anyopaque, allocator: Allocator) void {
 
     if (self.version) |version| {
         switch (version) {
-            .default => {},
             .branch => |b| allocator.free(b),
             .tag => |t| allocator.free(t),
         }

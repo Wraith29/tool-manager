@@ -36,7 +36,7 @@ const help =
 repository: []const u8,
 tool_name: ?[]const u8 = null,
 is_multi_step: bool = false,
-version: git.Version = .default,
+version: ?git.Version = null,
 
 pub fn command() Command {
     return Command{
@@ -75,7 +75,7 @@ pub fn parse(allocator: Allocator, arguments: []const []const u8) Command.ParseE
     else if (tag) |t|
         git.Version{ .tag = t }
     else
-        .default;
+        null;
 
     return Executable{
         .ptr = exe,
@@ -90,17 +90,16 @@ pub fn deinit(ptr: *anyopaque, allocator: Allocator) void {
     if (self.tool_name) |tool_name|
         allocator.free(tool_name);
 
-    switch (self.version) {
-        .branch => |b| allocator.free(b),
-        .tag => |t| allocator.free(t),
-        else => {},
-    }
+    if (self.version) |v|
+        switch (v) {
+            .branch => |b| allocator.free(b),
+            .tag => |t| allocator.free(t),
+        };
 
     allocator.destroy(self);
 }
 
 pub fn execute(ptr: *anyopaque, allocator: Allocator) !void {
-    log.info("{any}", .{ptr});
     const self: *Use = @ptrCast(@alignCast(ptr));
 
     log.info("Repository: {s}", .{self.repository});
@@ -159,6 +158,16 @@ pub fn execute(ptr: *anyopaque, allocator: Allocator) !void {
     defer cfg.destroy(allocator);
 
     try tool.install(allocator, cfg);
+    log.info("Version (PostInstall): {?any}", .{tool.version});
+
+    defer if (self.version == null) {
+        if (tool.version) |v| {
+            switch (v) {
+                .branch => |b| allocator.free(b),
+                .tag => |t| allocator.free(t),
+            }
+        }
+    };
 
     try tool.save(allocator);
 }

@@ -18,14 +18,15 @@ pub const Step = struct {
 name: []const u8,
 repository: []const u8,
 install_steps: []*Step,
-version: git.Version,
+/// This should never be nullable when saved.
+version: ?git.Version,
 updated_at: i64,
 
 fn getToolPath(self: *const Tool, allocator: Allocator, cfg: *const Config) ![]const u8 {
     return try std.fs.path.join(allocator, &.{ cfg.install_directory, self.name });
 }
 
-pub fn install(self: *const Tool, allocator: Allocator, cfg: *const Config) !void {
+pub fn install(self: *Tool, allocator: Allocator, cfg: *const Config) !void {
     log.info("Installing {s}", .{self.name});
     const tool_path = try self.getToolPath(allocator, cfg);
     defer allocator.free(tool_path);
@@ -43,7 +44,14 @@ pub fn install(self: *const Tool, allocator: Allocator, cfg: *const Config) !voi
     } else {
         log.info("{s} not found. Cloning into {s}", .{ self.name, tool_path });
         try git.clone(allocator, self.repository, tool_path, self.version);
+
         log.info("{s} cloned into {s}", .{ self.name, tool_path });
+    }
+
+    if (self.version == null) {
+        const branch_name = try git.getBranchName(allocator, tool_path);
+        log.info("Updating version to {s}", .{branch_name});
+        self.version = git.Version{ .branch = branch_name };
     }
 
     try self.build(allocator, tool_path);
@@ -64,7 +72,6 @@ pub fn update(self: *Tool, allocator: Allocator, new_version: ?git.Version, cfg:
 
     if (new_version) |version| {
         switch (version) {
-            .default => {},
             .branch => |b| try git.checkoutBranch(allocator, tool_path, b),
             .tag => |t| try git.checkoutTag(allocator, tool_path, t),
         }
@@ -72,7 +79,7 @@ pub fn update(self: *Tool, allocator: Allocator, new_version: ?git.Version, cfg:
         self.version = version;
     }
 
-    if (self.version != .tag)
+    if (self.version.? != .tag)
         try git.pull(allocator, tool_path);
 
     try self.build(allocator, tool_path);
@@ -110,6 +117,11 @@ fn build(
 }
 
 pub fn save(self: *const Tool, allocator: Allocator) !void {
+    if (self.version == null) {
+        log.err("Tool: {s} has a null version. This shouldn't happen", .{self.name});
+        unreachable;
+    }
+
     const tool_fp = try std.fs.path.join(allocator, &.{ files.app_data_dir, "tools.json" });
     defer allocator.free(tool_fp);
 

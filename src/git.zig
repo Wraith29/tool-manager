@@ -4,7 +4,6 @@ const Allocator = std.mem.Allocator;
 const Child = std.process.Child;
 
 pub const Version = union(enum) {
-    default: void,
     branch: []const u8,
     tag: []const u8,
 };
@@ -13,13 +12,12 @@ pub fn clone(
     allocator: Allocator,
     repository: []const u8,
     path: []const u8,
-    version: Version,
+    version: ?Version,
 ) !void {
-    const argv: []const []const u8 = switch (version) {
-        .default => &.{ "git", "clone", repository, path, "--quiet" },
+    const argv: []const []const u8 = if (version) |v| switch (v) {
         .branch => |b| &.{ "git", "clone", repository, path, "--quiet", "--branch", b },
         .tag => &.{ "git", "clone", repository, path, "--quiet", "--tags" },
-    };
+    } else &.{ "git", "clone", repository, path, "--quiet" };
 
     const result = try Child.run(.{
         .allocator = allocator,
@@ -32,8 +30,10 @@ pub fn clone(
         return error.CloneFailed;
     }
 
-    if (version == .tag)
-        try checkoutTag(allocator, path, version.tag);
+    if (version) |v| {
+        if (v == .tag)
+            try checkoutTag(allocator, path, v.tag);
+    }
 }
 
 pub fn checkoutBranch(allocator: Allocator, path: []const u8, branch_name: []const u8) !void {
@@ -102,6 +102,25 @@ pub fn pull(
         log.err("{s}: Pull Failed: {s}", .{ path, result.stderr });
         return error.PullFailed;
     }
+}
+
+pub fn getBranchName(allocator: Allocator, path: []const u8) ![]const u8 {
+    const result = try Child.run(.{
+        .allocator = allocator,
+        .argv = &.{ "git", "branch", "--show-current" },
+        .cwd = path,
+    });
+    defer freeResult(allocator, result);
+
+    if (result.term.Exited != 0) {
+        log.err("{s}: Get Branch Name failed: {s}", .{ path, result.stderr });
+        return error.GetBranchNameFailed;
+    }
+
+    const branch_name = try allocator.alloc(u8, result.stdout.len - 1);
+    @memcpy(branch_name, result.stdout[0 .. result.stdout.len - 1]);
+
+    return branch_name;
 }
 
 fn freeResult(allocator: Allocator, result: Child.RunResult) void {

@@ -21,6 +21,7 @@ const help =
     \\
     \\options:
     \\  -h, --help    Show this message
+    \\
 ;
 
 pub fn command() Command {
@@ -105,5 +106,5 @@ pub fn execute(_: *anyopaque, allocator: Allocator) !void {
     defer allocator.free(tools_fp);
 
     log.info("Creating Tools file @ {s}", .{tools_fp});
-    try files.createFileWithContents(tools_fp, "[]");
+    try files.createFileWithContents(tools_fp, "{}");
 }
