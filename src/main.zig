@@ -72,14 +72,6 @@ pub fn main() !void {
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
-    // TODO:
-    // - [ ] Create command line argument handling
-    //   - [x] Init command (Setup required directories / files -> .local/tool-manager/config.json,tools.json)
-    //   - [ ] Add tool command (Fancy Cmd line stuff to build up new tool)
-    //   - [ ] Update tools command (optional name filter?)
-    // - [ ] Read Tools from File
-    // - [ ] Implement threading, so multiple tools are updated at once
-
     try files.init(allocator);
     defer files.deinit(allocator);
 
