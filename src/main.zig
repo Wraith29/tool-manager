@@ -14,8 +14,10 @@ pub fn main() !void {
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
-    const cfg = try Config.load(allocator);
-    defer cfg.deinit();
+    const cfg = try Config.init(allocator);
+    defer cfg.deinit(allocator);
+
+    std.log.info("Tool Path: {s}", .{cfg.tool_path});
 }
 
 test {
