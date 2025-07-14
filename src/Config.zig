@@ -12,7 +12,7 @@ tool_path: []const u8,
 
 const PathData = struct { base_path: []const u8, config_path: []const u8 };
 
-fn getPaths(allocator: Allocator) Allocator.Error!PathData {
+fn getPaths(allocator: Allocator) !PathData {
     const base_path = try std.fs.getAppDataDir(allocator, app_name);
 
     return PathData{
