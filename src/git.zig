@@ -8,9 +8,11 @@ const Config = @import("Config.zig");
 const string = @import("string.zig");
 
 const Error = error{
-    CloneFailed,
     CheckoutFailed,
+    CloneFailed,
+    FetchFailed,
     GetBranchNameFailed,
+    PullFailed,
 } || Allocator.Error || Child.RunError;
 
 pub const Version = union(enum) {
@@ -21,9 +23,6 @@ pub const Version = union(enum) {
         switch (self.*) {
             .branch => |b| allocator.free(b),
             .tag => |t| allocator.free(t),
-            // else => {
-            //     std.debug.panic("Unexpected Version: {any}", .{self});
-            // },
         }
     }
 };
@@ -65,6 +64,42 @@ pub fn clone(
     } else return .{ .branch = try getBranchName(allocator, name, tool_install_dir) };
 
     return null;
+}
+
+pub fn fetch(allocator: Allocator, cfg: *const Config, name: []const u8) Error!bool {
+    const tool_install_dir = try std.fs.path.join(allocator, &.{ cfg.tool_path, "src", name });
+    defer allocator.free(tool_install_dir);
+
+    const result = try Child.run(.{
+        .allocator = allocator,
+        .argv = &.{ "git", "fetch" },
+        .cwd = tool_install_dir,
+    });
+    defer freeRunResult(allocator, result);
+
+    if (result.term.Exited != 0) {
+        log.err("{s}: fetch failed: {s}", .{ name, result.stder });
+        return Error.FetchFailed;
+    }
+
+    return result.stdout.len != 0;
+}
+
+pub fn pull(allocator: Allocator, cfg: *const Config, name: []const u8) Error!void {
+    const tool_install_dir = try std.fs.path.join(allocator, &.{ cfg.tool_path, "src", name });
+    defer allocator.free(tool_install_dir);
+
+    const result = try Child.run(.{
+        .allocator = allocator,
+        .argv = &.{ "git", "pull" },
+        .cwd = tool_install_dir,
+    });
+    defer freeRunResult(allocator, result);
+
+    if (result.term.Exited != 0) {
+        log.err("{s}: pull failed: {s}", .{ name, result.stderr });
+        return Error.PullFailed;
+    }
 }
 
 fn getCloneCommand(
