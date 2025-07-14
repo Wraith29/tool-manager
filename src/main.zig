@@ -6,6 +6,7 @@ const log = std.log.scoped(.main);
 
 const Config = @import("Config.zig");
 const path = @import("path.zig");
+const git = @import("git.zig");
 
 fn ensureToolPathsExist(cfg: *const Config) !void {
     if (!path.exists(cfg.tool_path)) {
@@ -49,7 +50,12 @@ pub fn main() !void {
 
     try ensureToolPathsExist(cfg);
 
-    std.log.info("Tool Path: {s}", .{cfg.tool_path});
+    log.info("Tool Path: {s}", .{cfg.tool_path});
+
+    var default_version = try git.clone(allocator, cfg, "https://github.com/wraith29/tool-manager", "tool-manager", null);
+    defer if (default_version) |*v| v.deinit(allocator);
+
+    log.info("Default Version: {s}", .{default_version.?.branch});
 }
 
 test {

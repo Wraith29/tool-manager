@@ -12,8 +12,7 @@ name: []const u8,
 aliases: []const []const u8,
 help: []const u8,
 
-/// TODO: Change this to return an actual executable
-parseFn: *const fn (Allocator) ParseError!Executable,
+parseFn: ?*const fn (Allocator) ParseError!Executable,
 
 pub fn match(self: Command, cmd: []const u8) bool {
     if (std.mem.eql(u8, cmd, self.name))
@@ -26,6 +25,40 @@ pub fn match(self: Command, cmd: []const u8) bool {
     return false;
 }
 
+test "match - cmd doesn't match anything - false" {
+    const cmd = Command{
+        .name = "hello",
+        .aliases = &.{ "hi", "hey" },
+        .help = "",
+        .parseFn = null,
+    };
+
+    try std.testing.expect(!cmd.match("wassup"));
+}
+
+test "match - cmd matches the name - true" {
+    const cmd = Command{
+        .name = "hello",
+        .aliases = &.{ "hi", "hey" },
+        .help = "",
+        .parseFn = null,
+    };
+
+    try std.testing.expected(cmd.match("hello"));
+}
+
+test "match - cmd matches an alias - true" {
+    const cmd = Command{
+        .name = "hello",
+        .aliases = &.{ "hi", "hey" },
+        .help = "",
+        .parseFn = null,
+    };
+
+    try std.testing.expect(cmd.match("hi"));
+    try std.testing.expect(cmd.match("hey"));
+}
+
 pub fn parse(self: Command, allocator: Allocator) ParseError!Executable {
-    return self.parseFn(allocator);
+    return self.parseFn.?(allocator);
 }
