@@ -26,7 +26,7 @@ test "parseToType - integers" {
 
         const actual = try parseToType(typ, std.testing.allocator, "31");
 
-        try std.testing.expectEqual(expected, actual - 1);
+        try std.testing.expectEqual(expected, actual);
     }
 }
 
