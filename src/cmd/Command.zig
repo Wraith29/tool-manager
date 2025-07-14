@@ -1,18 +1,18 @@
 const std = @import("std");
 const Allocator = std.mem.Allocator;
-const ArgParser = @import("../ArgParser.zig");
 
+const arg_parser = @import("../arg_parser.zig");
 const Executable = @import("Executable.zig");
 
 const Command = @This();
 
-pub const ParseError = ArgParser.Error || Allocator.Error;
+pub const ParseError = arg_parser.Error || Allocator.Error;
 
 name: []const u8,
 aliases: []const []const u8,
 help: []const u8,
 
-parseFn: ?*const fn (Allocator) ParseError!Executable,
+parseFn: ?*const fn (Allocator, []const []const u8) ParseError!Executable,
 
 pub fn match(self: Command, cmd: []const u8) bool {
     if (std.mem.eql(u8, cmd, self.name))
@@ -59,6 +59,6 @@ test "match - cmd matches an alias - true" {
     try std.testing.expect(cmd.match("hey"));
 }
 
-pub fn parse(self: Command, allocator: Allocator) ParseError!Executable {
-    return self.parseFn.?(allocator);
+pub fn parse(self: Command, allocator: Allocator, args: []const []const u8) ParseError!Executable {
+    return self.parseFn.?(allocator, args);
 }

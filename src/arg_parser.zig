@@ -68,12 +68,11 @@ test "getNamedArgValue - matched name returns value" {
     try std.testing.expectEqualStrings(expected, actual.?);
 }
 
-fn parseImpl(comptime T: type, allocator: Allocator, args: []const []const u8) Error!T {
+pub fn parseArgs(comptime T: type, allocator: Allocator, args: []const []const u8) Error!T {
     var positional_arg_count: usize = 0;
     var inst = T{};
 
-    // Start at an index of 1 so that we skip the executable
-    inline for (std.meta.fields(T), 1..) |field, index| {
+    inline for (std.meta.fields(T), 0..) |field, index| {
         // Required Fields
         if (@typeInfo(field.type) != .optional) {
             positional_arg_count += 1;
@@ -108,7 +107,7 @@ fn parseImpl(comptime T: type, allocator: Allocator, args: []const []const u8) E
     return inst;
 }
 
-test "parseImpl - maps all required fields" {
+test "parseArgs - maps all required fields" {
     const test_struct = struct {
         required_field: []const u8 = undefined,
         non_required_field: ?[]const u8 = null,
@@ -119,13 +118,13 @@ test "parseImpl - maps all required fields" {
         .non_required_field = null,
     };
 
-    const actual = try parseImpl(test_struct, std.testing.allocator, &.{ "exe_path", "required" });
+    const actual = try parseArgs(test_struct, std.testing.allocator, &.{ "exe_path", "required" });
     defer std.testing.allocator.free(actual.required_field);
 
     try std.testing.expectEqualDeep(expected, actual);
 }
 
-test "parseImpl - maps non-required fields" {
+test "parseArgs - maps non-required fields" {
     const test_struct = struct {
         non_required_field: ?u8 = null,
     };
@@ -134,16 +133,7 @@ test "parseImpl - maps non-required fields" {
         .non_required_field = 31,
     };
 
-    const actual = try parseImpl(test_struct, std.testing.allocator, &.{ "exe_path", "--non_required_field=31" });
+    const actual = try parseArgs(test_struct, std.testing.allocator, &.{ "exe_path", "--non_required_field=31" });
 
     try std.testing.expectEqualDeep(expected, actual);
-}
-
-/// This simply wraps `parseImpl` but passes in the process args. Saves the user having to allocate & free the args
-/// While making the parse implementation nicely testable
-pub fn parseInto(comptime T: type, allocator: Allocator) Error!T {
-    const args = try std.process.argsAlloc(allocator);
-    defer std.process.argsFree(allocator, args);
-
-    return parseImpl(T, allocator, args);
 }

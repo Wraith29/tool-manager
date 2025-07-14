@@ -1,7 +1,7 @@
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 
-const ArgParser = @import("../ArgParser.zig");
+const arg_parser = @import("../arg_parser.zig");
 const Command = @import("Command.zig");
 const Executable = @import("Executable.zig");
 
@@ -44,9 +44,9 @@ pub fn comand() Command {
     };
 }
 
-pub fn parse(allocator: Allocator) Command.ParseError!Executable {
+pub fn parse(allocator: Allocator, args: []const []const u8) Command.ParseError!Executable {
     const exe = try allocator.create(Example);
-    exe.args = try ArgParser.parseInto(ExampleArgs, allocator);
+    exe.args = try arg_parser.parseArgs(ExampleArgs, allocator, args);
 
     return Executable{
         .ptr = exe,
