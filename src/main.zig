@@ -8,7 +8,7 @@ const Config = @import("Config.zig");
 const path = @import("path.zig");
 const git = @import("git.zig");
 
-f ensureToolPathsExist(cfg: *const Config) !void {
+fn ensureToolPathsExist(cfg: *const Config) !void {
     if (!path.exists(cfg.tool_path)) {
         log.info("{s} not found, creating it", .{cfg.tool_path});
         try std.fs.makeDirAbsolute(cfg.tool_path);
