@@ -10,10 +10,15 @@ const app_name = "tool-manager";
 /// The base path for the tools.json file, and the src / bin dirs
 tool_path: []const u8,
 
-fn getPaths(allocator: Allocator) !struct { []const u8, []const u8 } {
+const PathData = struct { base_path: []const u8, config_path: []const u8 };
+
+fn getPaths(allocator: Allocator) Allocator.Error!PathData {
     const base_path = try std.fs.getAppDataDir(allocator, app_name);
 
-    return .{ base_path, try std.fs.path.join(allocator, &.{ base_path, "config.json" }) };
+    return PathData{
+        .base_path = base_path,
+        .config_path = try std.fs.path.join(allocator, &.{ base_path, "config.json" }),
+    };
 }
 
 fn default(allocator: Allocator) !*Config {
@@ -74,25 +79,25 @@ fn saveToFile(self: *const Config, allocator: Allocator, cfg_path: []const u8) !
 }
 
 pub fn init(allocator: Allocator) !*Config {
-    const base_path, const cfg_path = try getPaths(allocator);
+    const paths = try getPaths(allocator);
     defer {
-        allocator.free(base_path);
-        allocator.free(cfg_path);
+        allocator.free(paths.base_path);
+        allocator.free(paths.config_path);
     }
 
-    if (!path.exists(base_path))
-        try std.fs.makeDirAbsolute(base_path);
+    if (!path.exists(paths.base_path))
+        try std.fs.makeDirAbsolute(paths.base_path);
 
-    if (path.exists(cfg_path))
-        return try loadFromPath(allocator, cfg_path);
+    if (path.exists(paths.config_path))
+        return try loadFromPath(allocator, paths.config_path);
 
     log.info("Config File not found. Generating Defaults", .{});
     const cfg = try default(allocator);
     errdefer cfg.deinit(allocator);
 
-    log.info("Saving Config to {s}", .{cfg_path});
+    log.info("Saving Config to {s}", .{paths.config_path});
 
-    try cfg.saveToFile(allocator, cfg_path);
+    try cfg.saveToFile(allocator, paths.config_path);
 
     return cfg;
 }
