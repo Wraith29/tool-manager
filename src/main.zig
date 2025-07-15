@@ -27,6 +27,14 @@ fn ensureToolPathsExist(cfg: *const Config) !void {
         try tools_file.writeAll("{}");
     };
 
+    tool_dir.access("installers.json", .{}) catch {
+        log.info("installers.json not found, creating it", .{});
+        var installers_file = try tool_dir.createFile("installers.json", .{});
+        defer installers_file.close();
+
+        try installers_file.writeAll("{}");
+    };
+
     tool_dir.access("src", .{}) catch {
         log.info("src dir not found, creating it", .{});
         try tool_dir.makeDir("src");
