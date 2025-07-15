@@ -41,12 +41,13 @@ pub fn run(self: *const Cli) !void {
                 else => return err,
             };
         }
-    } orelse showHelp();
+    } else showHelp();
 
     return exe.execute(self.allocator);
 }
 
 pub fn showHelp() noreturn {
-    try std.io.getStdOut().writeAll(showHelp);
+    std.io.getStdOut().writeAll(help) catch |err| std.debug.panic("Error: {s}", .{@errorName(err)});
     std.process.cleanExit();
+    unreachable;
 }

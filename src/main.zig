@@ -4,7 +4,9 @@ const ArrayList = std.ArrayList;
 const builtin = @import("builtin");
 const log = std.log.scoped(.main);
 
+const arg_parser = @import("arg_parser.zig");
 const Config = @import("Config.zig");
+const Cli = @import("Cli.zig");
 const path = @import("path.zig");
 const git = @import("git.zig");
 
@@ -45,17 +47,43 @@ pub fn main() !void {
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
-    var cfg = try Config.init(allocator);
-    defer cfg.deinit(allocator);
+    const Test = struct {
+        hello: []const u8 = undefined,
+        opt_field: ?[]const u8 = null,
+        opt_int: ?u32 = null,
 
-    try ensureToolPathsExist(cfg);
+        pub fn default() @This() {
+            return .{
+                .hello = undefined,
+                .opt_field = null,
+                .opt_int = null,
+            };
+        }
 
-    log.info("Tool Path: {s}", .{cfg.tool_path});
+        fn deinit(self: *@This(), alloc: Allocator) void {
+            alloc.free(self.hello);
+            if (self.opt_field) |opt| alloc.free(opt);
 
-    var default_version = try git.clone(allocator, cfg, "https://github.com/wraith29/tool-manager", "tool-manager", null);
-    defer if (default_version) |*v| v.deinit(allocator);
+            alloc.destroy(self);
+        }
+    };
 
-    log.info("Default Version: {s}", .{default_version.?.branch});
+    const args = try std.process.argsAlloc(allocator);
+    defer std.process.argsFree(allocator, args);
+
+    const ts = try arg_parser.parseArgs(Test, allocator, args[1..]);
+    defer ts.deinit(allocator);
+
+    log.info("TS: {any}", .{ts});
+
+    // var cfg = try Config.init(allocator);
+    // defer cfg.deinit(allocator);
+
+    // try ensureToolPathsExist(cfg);
+
+    // const cli = Cli.init(allocator);
+
+    // return try cli.run();
 }
 
 test {

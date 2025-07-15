@@ -68,11 +68,16 @@ test "getNamedArgValue - matched name returns value" {
     try std.testing.expectEqualStrings(expected, actual.?);
 }
 
-pub fn parseArgs(comptime T: type, allocator: Allocator, args: []const []const u8) Error!T {
+pub fn parseArgs(comptime T: type, allocator: Allocator, args: []const []const u8) Error!*T {
+    if (!@hasDecl(T, "default"))
+        @compileError(@typeName(T) ++ " must have a default function");
+
     var positional_arg_count: usize = 0;
-    var inst = T{};
+    const inst = try allocator.create(T);
+    inst.* = T.default();
 
     inline for (std.meta.fields(T), 0..) |field, index| {
+        log.info("Checking {s}", .{field.name});
         // Required Fields
         if (@typeInfo(field.type) != .optional) {
             positional_arg_count += 1;
@@ -84,56 +89,82 @@ pub fn parseArgs(comptime T: type, allocator: Allocator, args: []const []const u
             }
 
             const field_value = try parseToType(field.type, allocator, args[index]);
-            @field(inst, field.name) = field_value;
+            @field(inst.*, field.name) = field_value;
             continue;
         }
 
         // Non-required fields
-        if (args.len <= positional_arg_count + 1) {
+        if (args.len <= positional_arg_count) {
             log.info("No non-positional arguments found.", .{});
             break;
         }
 
-        for (args[positional_arg_count + 1 ..]) |arg| {
+        for (args[positional_arg_count..]) |arg| {
             if (try getNamedArgValue(allocator, arg, field.name)) |raw_value| {
                 defer allocator.free(raw_value);
 
                 const value = try parseToType(@typeInfo(field.type).optional.child, allocator, raw_value);
-                @field(inst, field.name) = value;
+                @field(inst.*, field.name) = value;
             }
         }
     }
-
     return inst;
 }
 
-test "parseArgs - maps all required fields" {
-    const test_struct = struct {
-        required_field: []const u8 = undefined,
-        non_required_field: ?[]const u8 = null,
+test "parseArgs - parses required fields into appropriate types" {
+    const TestStruct = struct {
+        required_str: []const u8 = undefined,
+        required_int: u32 = undefined,
+
+        fn default() @This() {
+            return .{
+                .required_str = undefined,
+                .required_int = undefined,
+            };
+        }
     };
 
-    const expected = test_struct{
-        .required_field = "required",
-        .non_required_field = null,
-    };
+    const actual = try parseArgs(TestStruct, std.testing.allocator, &.{ "required_string", "128" });
+    defer {
+        std.testing.allocator.free(actual.required_str);
+        std.testing.allocator.destroy(actual);
+    }
 
-    const actual = try parseArgs(test_struct, std.testing.allocator, &.{ "exe_path", "required" });
-    defer std.testing.allocator.free(actual.required_field);
-
-    try std.testing.expectEqualDeep(expected, actual);
+    try std.testing.expectEqualStrings("required_string", actual.required_str);
+    try std.testing.expectEqual(128, actual.required_int);
 }
 
-test "parseArgs - maps non-required fields" {
-    const test_struct = struct {
-        non_required_field: ?u8 = null,
+test "parseArgs - parses named fields into appropriate types" {
+    const TestStruct = struct {
+        opt_str: ?[]const u8 = null,
+        opt_int: ?u32 = null,
+        ign_str: ?[]const u8 = null,
+        ign_int: ?u32 = null,
+
+        fn default() @This() {
+            return .{
+                .opt_str = null,
+                .opt_int = null,
+                .ign_str = null,
+                .ign_int = null,
+            };
+        }
     };
 
-    const expected = test_struct{
-        .non_required_field = 31,
-    };
+    const actual = try parseArgs(TestStruct, std.testing.allocator, &.{ "--opt_str=opt_str", "--opt_int=256" });
+    defer {
+        if (actual.opt_str) |str|
+            std.testing.allocator.free(str);
 
-    const actual = try parseArgs(test_struct, std.testing.allocator, &.{ "exe_path", "--non_required_field=31" });
+        std.testing.allocator.destroy(actual);
+    }
 
-    try std.testing.expectEqualDeep(expected, actual);
+    try std.testing.expect(actual.opt_str != null);
+    try std.testing.expectEqualStrings("opt_str", actual.opt_str.?);
+
+    try std.testing.expect(actual.opt_int != null);
+    try std.testing.expectEqual(256, actual.opt_int);
+
+    try std.testing.expect(actual.ign_str == null);
+    try std.testing.expect(actual.ign_int == null);
 }

@@ -44,7 +44,7 @@ test "match - cmd matches the name - true" {
         .parseFn = null,
     };
 
-    try std.testing.expected(cmd.match("hello"));
+    try std.testing.expect(cmd.match("hello"));
 }
 
 test "match - cmd matches an alias - true" {
