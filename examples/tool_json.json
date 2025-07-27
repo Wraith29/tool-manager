@@ -1,0 +1,28 @@
+{
+  "installers": {
+    "zig_rf": {
+      "name": "Zig - Release Fast",
+      "description": "Zig build with speed optimization",
+      "commands": [
+        "zig build -Doptimize=ReleaseFast",
+        "mv ./zig-out/bin/{{name}} {{tool_manager_bin}}"
+      ],
+      "variables": {
+        "name": "The name of the executable"
+      }
+    }
+  },
+  "tools": {
+    "tool-manager": {
+      "name": "tool-manager",
+      "repository": "https://github.com/wraith29/tool-manager",
+      "installer": "zig_rf",
+      "variables": {
+        "name": "tool-manager"
+      },
+      "version": {
+        "branch": "new"
+      }
+    }
+  }
+}

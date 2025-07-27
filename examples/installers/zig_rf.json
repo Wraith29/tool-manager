@@ -1,0 +1,11 @@
+{
+  "name": "Zig - Release Fast",
+  "description": "Build a Zig App in ReleaseFast Mode",
+  "commands": [
+    "zig build -Doptimize=ReleaseFast",
+    "mv ./zig-out/bin/{{name}} $tool_manager_bin_dir"
+  ],
+  "variables": {
+    "name": "The name of the application"
+  }
+}

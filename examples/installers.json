@@ -1,0 +1,6 @@
+[
+  {
+    "name": "zig_rf",
+    "description": "Build a Zig App in ReleaseFast mode"
+  }
+]
