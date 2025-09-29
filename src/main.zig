@@ -3,10 +3,9 @@ const Allocator = std.mem.Allocator;
 
 const Args = @import("Args.zig");
 const Cli = @import("Cli.zig");
-
-fn installTool(_: Allocator, _: *Args) !void {
-    std.log.info("Hello from Tool/Install", .{});
-}
+const use = @import("commands/use.zig").execute;
+const cfg_list = @import("commands/config/list.zig").execute;
+const cfg_set = @import("commands/config/set.zig").execute;
 
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
@@ -21,12 +20,19 @@ pub fn main() !void {
         .name = "tool-manager",
         .commands = &.{
             .{
-                .name = "tool",
+                .name = "use",
+                .execute = use,
+            },
+            .{
+                .name = "config",
                 .subcommands = &.{
                     .{
-                        .name = "install",
-                        .short = "i",
-                        .execute = installTool,
+                        .name = "list",
+                        .execute = cfg_list,
+                    },
+                    .{
+                        .name = "set",
+                        .execute = cfg_set,
                     },
                 },
             },

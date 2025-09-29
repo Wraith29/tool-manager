@@ -20,17 +20,17 @@ pub fn match(self: Command, cmd: []const u8) bool {
     return false;
 }
 
-pub fn run(self: *const Command, allocator: Allocator, args: *Args) !void {
+pub fn run(self: Command, allocator: Allocator, args: *Args) !void {
     if (self.execute) |exec| {
         return try exec(allocator, args);
     }
 
-    const subcmd = args.next() orelse return error.NoCommandProvided;
+    const next = args.next() orelse return error.MissingRequiredSubcommand;
 
-    for (self.subcommands) |sub| {
-        if (sub.match(subcmd))
-            return sub.run(allocator, args);
+    for (self.subcommands) |subcmd| {
+        if (subcmd.match(next))
+            return subcmd.run(allocator, args);
     }
 
-    return error.UnknownSubCommand;
+    return error.UnknownCommand;
 }
