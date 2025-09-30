@@ -3,4 +3,4 @@ nim = "latest"
 
 [tasks.exec]
 description = "Build & Run the app. This is a workaround for the fact that \"nimble run\" seems to not log output to the console"
-run = ["nimble build", "./tool_manager"]
+run = ["nimble build", "./main"]

@@ -1,4 +1,4 @@
-import std/[options, sugar]
+import std/[options, strformat, sugar, strutils]
 import ./[args]
 
 
@@ -16,27 +16,45 @@ type
     else: nil
 
 
-type Command = ref object
-  name: string
-  short: string
-  exec: Option[ExecFn]
-  children: seq[Command]
+type Command* = ref object
+  name*: string
+  short*: string
+  description*: string
+  exec*: Option[ExecFn]
+  children*: seq[Command]
 
 
-func newCommand*(name: string, exec: ExecFn): Command =
+proc newCommand*(
+  name: string,
+  description: string,
+  exec: ExecFn,
+  short: string = "",
+): Command =
   return Command(
     name: name,
-    exec: some(exec),
-    children: newSeq[Command]()
+    description: description,
+    short: short,
+    exec: some exec,
+    children: @[]
   )
 
-
-func newCommand*(name: string, commands: seq[Command]): Command =
+proc newCommand*(
+  name: string,
+  description: string,
+  children: seq[Command],
+  short: string = ""
+): Command =
   return Command(
     name: name,
+    description: description,
+    short: short,
     exec: none(ExecFn),
-    children: commands
+    children: children
   )
+
+
+func `$`*(self: Command): string =
+  return fmt"Command(name: {self.name}, description: {self.description})"
 
 
 func match(self: Command, cmd: string): bool = self.name == cmd or self.short == cmd
@@ -70,6 +88,31 @@ func newCli*(name: string, commands: seq[Command]): Cli =
     name: name,
     commands: commands
   )
+
+
+proc help*(self: Cli): string =
+  let underline = repeat('-', self.name.len)
+  let cmdLengths = collect:
+    for cmd in self.commands: cmd.name.len
+
+  let longestCmdName = cmdLengths.max()
+
+  let cmdHelp = collect:
+    for cmd in self.commands:
+      let space = repeat(' ', longestCmdName - cmd.name.len)
+      let extra = if cmd.short.len > 0: fmt" ({cmd.short})" else: ""
+
+      fmt"  {space}{cmd.name}{extra} - {cmd.description}"
+  
+  let commands = cmdHelp.join("\n")
+
+  return fmt"""
+  {self.name}
+  {underline}
+
+  Commands:
+  {commands}
+  """.dedent(2)
 
 
 proc run*(cli: Cli, args: Args): Option[CliError] =
