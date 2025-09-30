@@ -1,2 +1,6 @@
 tool_manager
 .vscode/
+main
+
+nimble.develop
+nimble.paths
