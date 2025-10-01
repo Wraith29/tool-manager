@@ -1,27 +1,29 @@
-import std/[options, strformat, sugar, strutils]
+import std/[options, strformat, sugar]
 import ./[args]
 
-
-type ExecFn = (Args) -> void
-
 type
-  CmdError* = enum
+  ExecFn = (Args) -> void
+
+  CommandError* = enum
     NotProvided
     Unknown
 
   CliError = ref object
-    case kind*: CmdError
+    case kind*: CommandError
     of Unknown:
       cmd*: string
     else: nil
 
+  CommandType = enum
+    ctExe, ctParent
 
-type Command* = ref object
-  name*: string
-  short*: string
-  description*: string
-  exec*: Option[ExecFn]
-  children*: seq[Command]
+  Command* = ref object
+    name*: string
+    short*: string
+    description*: string
+    case kind: CommandType:
+    of ctExe: exec*: ExecFn
+    of ctParent: children*: seq[Command]
 
 
 proc newCommand*(
@@ -34,8 +36,8 @@ proc newCommand*(
     name: name,
     description: description,
     short: short,
-    exec: some exec,
-    children: @[]
+    kind: ctExe,
+    exec: exec
   )
 
 proc newCommand*(
@@ -48,7 +50,7 @@ proc newCommand*(
     name: name,
     description: description,
     short: short,
-    exec: none(ExecFn),
+    kind: ctParent,
     children: children
   )
 
@@ -57,25 +59,24 @@ func `$`*(self: Command): string =
   return fmt"Command(name: {self.name}, description: {self.description})"
 
 
-func match(self: Command, cmd: string): bool = self.name == cmd or self.short == cmd
+func match(self: Command, cmd: string): bool =
+  self.name == cmd or self.short == cmd
 
 
 proc run(self: Command, args: Args): Option[CliError] =
-  if self.exec.isSome():
-    let fn = self.exec.get()
-
-    fn(args)
+  if self.kind == ctExe:
+    self.exec(args)
     return none(CliError)
 
   let subcmd = args.next()
   if subcmd.isNone():
-    return some CliError(kind: CmdError.NotProvided)
+    return some CliError(kind: CommandError.NotProvided)
 
   for child in self.children:
     if child.match(get subcmd):
       return child.run(args)
 
-  return some CliError(kind: CmdError.Unknown, cmd: get subcmd)
+  return some CliError(kind: CommandError.Unknown, cmd: get subcmd)
 
 
 type Cli = ref object
@@ -90,38 +91,13 @@ func newCli*(name: string, commands: seq[Command]): Cli =
   )
 
 
-proc help*(self: Cli): string =
-  let underline = repeat('-', self.name.len)
-  let cmdLengths = collect:
-    for cmd in self.commands: cmd.name.len
-
-  let longestCmdName = cmdLengths.max()
-
-  let cmdHelp = collect:
-    for cmd in self.commands:
-      let space = repeat(' ', longestCmdName - cmd.name.len)
-      let extra = if cmd.short.len > 0: fmt" ({cmd.short})" else: ""
-
-      fmt"  {space}{cmd.name}{extra} - {cmd.description}"
-  
-  let commands = cmdHelp.join("\n")
-
-  return fmt"""
-  {self.name}
-  {underline}
-
-  Commands:
-  {commands}
-  """.dedent(2)
-
-
 proc run*(cli: Cli, args: Args): Option[CliError] =
   let cmd = args.next()
   if cmd.isNone():
-    return some CliError(kind: CmdError.NotProvided)
+    return some CliError(kind: CommandError.NotProvided)
 
   for command in cli.commands:
     if command.match(get cmd):
       return command.run(args)
 
-  return some CliError(kind: CmdError.Unknown, cmd: get cmd)
+  return some CliError(kind: CommandError.Unknown, cmd: get cmd)

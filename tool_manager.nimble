@@ -11,3 +11,4 @@ bin           = @["main"]
 # Dependencies
 
 requires "nim >= 2.2.4"
+requires "jsony >= 1.1.5"
