@@ -8,4 +8,4 @@ proc execConfigList*(args: Args): void =
   echo "Settings:"
 
   for key, val in cfg[].fieldPairs:
-    echo "  " & key & ": " & val 
+    echo "  " & key & ": " & val

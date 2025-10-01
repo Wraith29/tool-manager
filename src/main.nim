@@ -11,24 +11,13 @@ proc main(): int =
   let cli = newCli(
     "tool-manager",
     @[
-      newCommand(
-        "use",
-        "Install a new tool",
-        execUse,
-        short = "u"
-      ),
+      newCommand("use", "Install a new tool", execUse, short = "u"),
       newCommand(
         "config",
         "Config related operations",
-        @[
-          newCommand(
-            "list",
-            "List all settings",
-            execConfigList
-          )
-        ]
-      )
-    ]
+        @[newCommand("list", "List all settings", execConfigList)],
+      ),
+    ],
   )
 
   let err = cli.run(args)
@@ -38,12 +27,11 @@ proc main(): int =
   echo help()
 
   let value = get err
-  case value.kind:
+  case value.kind
   of CommandError.NotProvided:
     echo "ERROR: Subcommand not provided"
   of CommandError.Unknown:
     echo &"ERROR: Unknown subcommand \"{value.cmd}\""
 
-  
 when isMainModule:
   quit(main())
